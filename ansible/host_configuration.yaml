@@ -1,0 +1,22 @@
+---
+
+- hosts: localhost
+  gather_facts: false
+  tasks:
+    - block:
+      - name: Ensure stack group
+        group:
+          name: stack
+          state: present
+      - name: Passwordless sudo
+        lineinfile:
+          dest: /etc/sudoers
+          state: present
+          regexp: '^%stack'
+          line: '%stack ALL=(ALL) NOPASSWD: ALL'
+      - name: Ensure stack user
+        user:
+          name: stack
+          group: stack
+          state: present
+          createhome: yes
