@@ -1,0 +1,29 @@
+---
+
+- hosts: metal
+  gather_facts: false
+  tasks:
+    - name: Render eth1 configuration file
+      template:
+        src: templates/ifcfg-eth1.j2
+        dest: /etc/sysconfig/network-scripts/ifcfg-eth1
+      notify:
+        - restart network
+
+    # - name: Render eth2 configuration file
+    #   template:
+    #     src: templates/ifcfg-eth2.j2
+    #     dest: /etc/sysconfig/network-scripts/ifcfg-eth2
+    #   notify:
+    #     - restart network
+
+    - name: Copy kolla-ansible globals.yml file
+      copy:
+        src: files/globals.yml
+        dest: /etc/kolla/globals.yml
+
+  handlers:
+    - name: restart network
+      service:
+        name: network
+        state: restarted

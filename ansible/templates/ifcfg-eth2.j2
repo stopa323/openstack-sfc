@@ -1,0 +1,7 @@
+DEVICE=eth2
+BOOTPROTO=none
+ONBOOT=yes
+NETWORK={{ eth2_cidr | ipaddr('network') }}
+NETMASK={{ eth2_cidr | ipaddr('netmask') }}
+IPADDR={{ eth2_cidr | ipaddr('address') }}
+USERCTL=no
