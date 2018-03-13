@@ -22,6 +22,11 @@
         src: files/globals.yml
         dest: /etc/kolla/globals.yml
 
+    - name: Copy kolla-ansible all-in-one inventory
+      copy:
+        src: files/all-in-one
+        dest: /root/all-in-one
+
   handlers:
     - name: restart network
       service:
