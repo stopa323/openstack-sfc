@@ -1,0 +1,24 @@
+heat_template_version: 2016-10-14
+
+description: Convert dictionary output to list using YAQL
+
+parameters:
+  data:
+    type: json
+    default:
+      - key_12345: value_12345
+      - key_999: value_999
+
+resources:
+  Dummy:
+    type: OS::Heat::Value
+    properties:
+      value:
+        yaql:
+          expression: def(v, $.values()) -> $.data.x.select(v($)).flatten()
+          data:
+            x: { get_param: data }
+
+outputs:
+  parsed_output:
+    value: { get_attr: [Dummy, value] }
