@@ -1,0 +1,101 @@
+---
+heat_template_version: 2015-04-30
+
+description: A simple flow classifier stack template.
+
+resources:
+  SFCNetwork:
+    type: OS::Neutron::Net
+    properties:
+      name: sfc_network
+
+  SFCSubnet:
+    type: OS::Neutron::Subnet
+    properties:
+      name: sfc_subnet
+      cidr: 10.200.0.0/16
+      allocation_pools:
+        - {"start": 10.200.0.10, "end": 10.200.0.50}
+      network: { get_resource: SFCNetwork }
+
+  VNF1_Ingress:
+    type: OS::Neutron::Port
+    properties:
+      name: vnf1_ingress
+      network: { get_resource: SFCNetwork }
+
+  VNF1_Egress:
+    type: OS::Neutron::Port
+    properties:
+      name: vnf1_egress
+      network: { get_resource: SFCNetwork }
+
+  VNF2_Ingress:
+    type: OS::Neutron::Port
+    properties:
+      name: vnf2_ingress
+      network: { get_resource: SFCNetwork }
+
+  VNF2_Egress:
+    type: OS::Neutron::Port
+    properties:
+      name: vnf2_egress
+      network: { get_resource: SFCNetwork }
+
+  VNF1:
+    type: OS::Nova::Server
+    properties:
+      name: vnf1
+      flavor: m1.tiny
+      image: cirros
+      networks:
+        - { port: { get_resource: VNF1_Ingress } }
+        - { port: { get_resource: VNF1_Egress } }
+
+  VNF2:
+    type: OS::Nova::Server
+    properties:
+      name: vnf2
+      flavor: m1.tiny
+      image: cirros
+      networks:
+        - { port: { get_resource: VNF2_Ingress } }
+        - { port: { get_resource: VNF2_Egress } }
+
+  FlowClassifier:
+    type: OS::Neutron::FlowClassifier
+    properties:
+      name: FlowClassifier1
+      description: VNF1 to VNF2
+      destination_ip_prefix: { get_attr: [SFCSubnet, cidr] }
+      source_ip_prefix: { get_attr: [SFCSubnet, cidr] }
+      ethertype: IPv4
+      logical_destination_port: { get_resource: VNF1_Ingress }
+      logical_source_port: { get_resource: VNF1_Egress }
+      protocol: tcp
+      source_port_range_min: 8000
+      source_port_range_max: 8000
+      destination_port_range_min: 80
+      destination_port_range_max: 80
+
+  PortPairGroup1:
+    type: OS::Neutron::PortPairGroup
+    properties:
+      name: PortPairGroup1
+      port_pairs: [{ get_resource: PortPair1 }]
+    depends_on: PortPair1
+
+  PortPair1:
+    type: OS::Neutron::PortPair
+    properties:
+      name: PortPair1
+      egress: { get_resource: VNF1_Egress }
+      ingress: { get_resource: VNF1_Ingress }
+    depends_on: FlowClassifier
+
+  PortChain1:
+    type: OS::Neutron::PortChain
+    properties:
+      name: PortChain1
+      flow_classifiers: [{ get_resource: FlowClassifier }]
+      port_pair_groups: [{ get_resource: PortPairGroup1 }]
