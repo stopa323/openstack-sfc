@@ -9,16 +9,14 @@ ppg_scale:
     - instance_id
 
   tasks:
-    get_data:
-      action: nova.servers_get
-      input:
-        server: <% $.instance_id %>
+    get_vm_port:
+      action: neutron.list_ports
       publish:
-        vm_data: <% task(get_data).result %>
+        vm_port: '{{ task("get_vm_port").result.ports | selectattr("device_id", "equalto", _.instance_id) | map(attribute="id") | list | first }}'
       on-success:
-        - echo_data
+        - get_sfc_port_pairs
 
-    echo_data:
-      action: std.echo
-      input:
-        output: <% $.vm_data %>
+    get_sfc_port_pairs:
+      action: neutron.list_sfc_port_pairs
+      publish:
+        sfc_pairs: '{{ task("get_sfc_port_pairs").result.port_pairs | selectattr("ingress", "equalto", _.vm_port) | map(attribute="id") | list | first }}'
