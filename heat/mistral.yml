@@ -1,0 +1,66 @@
+---
+heat_template_version: 2015-04-30
+
+description: Create Zaquar queue and trigger Mistral workflow on instance spawn.
+
+resources:
+
+  SFCNetwork:
+    type: OS::Neutron::Net
+    properties:
+      name: sfc_network
+
+  SFCSubnet:
+    type: OS::Neutron::Subnet
+    properties:
+      name: sfc_subnet
+      cidr: 10.200.0.0/16
+      allocation_pools:
+        - {"start": 10.200.0.10, "end": 10.200.0.50}
+      network: { get_resource: SFCNetwork }
+
+  NovaServer:
+    type: OS::Nova::Server
+    properties:
+      image: cirros
+      flavor: m1.tiny
+      networks:
+       - network: { get_resource: SFCNetwork }
+
+  AlarmQueue:
+    type: OS::Zaqar::Queue
+
+  DestroyAlarm:
+    type: OS::Aodh::EventAlarm
+    properties:
+      event_type: compute.instance.delete.start
+      query:
+        - field: traits.instance_id
+          value: { get_resource: NovaServer }
+          op: eq
+      alarm_queues:
+       - { get_resource: AlarmQueue }
+
+  EchoWorkflow:
+    type: OS::Mistral::Workflow
+    properties:
+      description: >
+        Echo stack id
+      input:
+        stack_id:
+      type: direct
+      tasks:
+        - name: echo_stack_id
+          action:
+            list_join:
+              - ' '
+              - - std.echo
+                - output=<% $.stack_id %>
+
+  AlarmSubscription:
+    type: OS::Zaqar::MistralTrigger
+    properties:
+      queue_name: { get_resource: AlarmQueue }
+      workflow_id: { get_resource: EchoWorkflow }
+      input:
+        stack_id: { get_param: "OS::stack_id" }
