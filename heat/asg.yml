@@ -1,0 +1,53 @@
+---
+heat_template_version: 2014-10-16  
+description: A simple auto scaling group.
+
+resources:
+  group:
+    type: OS::Heat::AutoScalingGroup
+    properties:
+      cooldown: 60
+      desired_capacity: 2
+      max_size: 5
+      min_size: 1
+      resource:
+        type: OS::Nova::Server
+        properties:
+          metadata: {"metering.server_group": {get_param: "OS::stack_id"}}
+          flavor: m1.tiny
+          networks:
+            - network: nfv_mgmt
+          image: 'cirros'
+#          user_data_format: RAW
+#          user_data: |
+#            #!/bin/sh
+#            while [ 1 ] ; do echo $((13**99)) 1>/dev/null 2>&1; done
+  scaleup_policy:
+    type: OS::Heat::ScalingPolicy
+    properties:
+      adjustment_type: change_in_capacity
+      auto_scaling_group_id: { get_resource: group }
+      cooldown: 60
+      scaling_adjustment: 1
+
+  cpu_alarm_high:
+    type: OS::Aodh::GnocchiAggregationByResourcesAlarm
+    properties:
+      metric: cpu_util
+      aggregation_method: mean
+      granularity: 300
+      evaluation_periods: 1
+      threshold: 50
+      alarm_actions:
+        - {get_attr: [scaleup_policy, alarm_url]}
+      comparison_operator: gt
+      resource_type: instance
+      query:
+        str_replace:
+          template: '{"=": {"server_group": "stack_id"}}'
+          params:
+            stack_id: {get_param: "OS::stack_id"}
+outputs:
+  vm_ids:
+    description: 'eeee?'
+    value: {get_attr: [{get_resource: group}, resource]}
