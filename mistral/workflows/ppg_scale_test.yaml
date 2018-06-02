@@ -1,0 +1,24 @@
+---
+version: '2.0'
+
+ppg_scale:
+  description: Scale Neutron PortPairGroup.
+  type: direct
+
+  input:
+    - instance_id
+
+  tasks:
+    get_data:
+      action: nova.servers_get
+      input:
+        server: <% $.instance_id %>
+      publish:
+        vm_data: <% task(get_data).result %>
+      on-success:
+        - echo_data
+
+    echo_data:
+      action: std.echo
+      input:
+        output: <% $.vm_data %>
