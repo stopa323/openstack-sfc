@@ -1,0 +1,49 @@
+---
+heat_template_version: 2015-04-30
+description: A simple VNF template.
+
+parameters:
+  image:
+    type: string
+    description: Glance image for VM
+  flavor:
+    type: string
+    description: Nova flavor for VM
+  network:
+    type: string
+    description: Neutron network for the VM
+
+resources:
+
+  IngressPort:
+    type: OS::Neutron::Port
+    properties:
+      network: { get_param: network }
+
+  EgressPort:
+    type: OS::Neutron::Port
+    properties:
+      network: { get_param: network }
+
+  VNF:
+    type: OS::Nova::Server
+    properties:
+      image: cirros
+      flavor: m1.tiny
+      networks:
+        - { port: { get_resource: IngressPort } }
+        - { port: { get_resource: EgressPort } }
+
+  PortPair:
+    type: OS::Neutron::PortPair
+    properties:
+      name: PortPair
+      egress: { get_resource: IngressPort }
+      ingress: { get_resource: EgressPort }
+    depends_on:
+      - VNF
+
+outputs:
+  port_pair:
+    description: VNF connected port pair
+    value: { get_resource: PortPair }
