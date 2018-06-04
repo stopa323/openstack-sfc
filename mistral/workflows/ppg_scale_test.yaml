@@ -20,3 +20,14 @@ ppg_scale:
       action: neutron.list_sfc_port_pairs
       publish:
         sfc_pairs: '{{ task("get_sfc_port_pairs").result.port_pairs | selectattr("ingress", "equalto", _.vm_port) | map(attribute="id") | list | first }}'
+      on-success:
+        - update_port_pair_group
+
+    update_port_pair_group:
+      action: neutron.update_sfc_port_pair_group
+      input:
+        port_pair_group: fb145ef9-ed18-4030-a17f-4eef3f90ec5c
+        body:
+          port_pair_group:
+            port_pairs:
+              - '{{ _.sfc_pairs }}'
