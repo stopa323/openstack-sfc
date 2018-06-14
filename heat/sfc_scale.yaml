@@ -4,9 +4,15 @@ description: >
   A simple SFC auto scaling.
   Stack consists of single network, single subnet and AutoScalingGroup.
   ASG consist of VM with Neutron::PortPair attached. Scaling polices provide
-  URLs for scale triggering. 
+  URLs for scale triggering.
 
 resources:
+
+  PortPairGroup1:
+    type: OS::Neutron::PortPairGroup
+    properties:
+      name: ppg1
+      port_pairs: []
 
   SFCNetwork:
     type: OS::Neutron::Net
@@ -31,9 +37,12 @@ resources:
           image: cirros
           flavor: m1.tiny
           network: { get_resource: SFCNetwork }
+          ppg_name: { get_resource: PortPairGroup1 }
       min_size: 1
       desired_capacity: 2
       max_size: 5
+    depends_on:
+      - PortPairGroup1
 
   ScaleUpPolicy:
     type: OS::Heat::ScalingPolicy

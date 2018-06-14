@@ -10,7 +10,7 @@ from mistralclient.api import client as mistral_client
 logging.basicConfig(level=logging.INFO)
 LOG = logging.getLogger(__name__)
 
-SCALE_UP_WF_NAME = 'noop_wf'
+SCALE_UP_WF_NAME = 'ppg_scale'
 SCALE_DOWN_WF_NAME = 'placeholder'
 
 auth = v3.Password(auth_url=os.environ['OS_AUTH_URL'],
@@ -47,7 +47,7 @@ def execute_workflow(client, wf_id, wf_input):
 
 
 
-@app.route('/alarm', methods=['POST'])
+@app.route('/alarm/vm_create', methods=['POST'])
 def receive_alarm_data():
     data = request.get_json()
     traits = data['reason_data']['event']['traits']
@@ -55,11 +55,13 @@ def receive_alarm_data():
     _, _, instance_id = filter(lambda t: t[0]=='instance_id', traits)[0]
     wf_id = get_workflow_id(CLIENT, SCALE_UP_WF_NAME)
     if wf_id:
+        import time
+        time.sleep(5)
         data = {"instance_id": instance_id}
         execute_workflow(CLIENT, wf_id, data)
         LOG.info("Workflow executed")
         return "OK"
-        
+
     LOG.warning("Workflow %s failed to execute" % wf_id)
     return "NOK"
 

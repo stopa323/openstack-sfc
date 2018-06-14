@@ -15,7 +15,7 @@ ppg_scale:
         vm_port: '{{ task("get_vm_port").result.ports | selectattr("device_id", "equalto", _.instance_id) | map(attribute="id") | list | first }}'
       on-success:
         - get_sfc_port_pairs
-        - get_current_port_pair_in_group
+        - get_instance_ppg
 
     get_sfc_port_pairs:
       action: neutron.list_sfc_port_pairs
@@ -24,10 +24,19 @@ ppg_scale:
       on-success:
         - rendezvous_point
 
+    get_instance_ppg:
+      action: nova.servers_get
+      input:
+        server: '{{ _.instance_id }}'
+      publish:
+        ppg_name: '{{ task("get_instance_ppg").result.metadata.ppg }}'
+      on-success:
+        - get_current_port_pair_in_group
+
     get_current_port_pair_in_group:
       action: neutron.show_sfc_port_pair_group
       input:
-        port_pair_group: fb145ef9-ed18-4030-a17f-4eef3f90ec5c
+        port_pair_group: '{{ _.ppg_name }}'
       publish:
         current_port_pairs: '{{ task("get_current_port_pair_in_group").result.port_pair_group.port_pairs }}'
       on-success:
@@ -41,7 +50,7 @@ ppg_scale:
     update_port_pair_group:
       action: neutron.update_sfc_port_pair_group
       input:
-        port_pair_group: fb145ef9-ed18-4030-a17f-4eef3f90ec5c
+        port_pair_group: '{{ _.ppg_name }}'
         body:
           port_pair_group:
             #TODO: should filter out duplicates but `unique` filter not working

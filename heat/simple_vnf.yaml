@@ -12,15 +12,16 @@ parameters:
   network:
     type: string
     description: Neutron network for the VM
+  ppg_name:
+    type: string
+    description: |
+      Name of the port pair group this VM belongs to. It is used by workflow
+      during scaling operation to attach/detach port pair to/from correct port
+      pair group.
 
 resources:
 
-  IngressPort:
-    type: OS::Neutron::Port
-    properties:
-      network: { get_param: network }
-
-  EgressPort:
+  SFCPort:
     type: OS::Neutron::Port
     properties:
       network: { get_param: network }
@@ -31,15 +32,16 @@ resources:
       image: cirros
       flavor: m1.tiny
       networks:
-        - { port: { get_resource: IngressPort } }
-        - { port: { get_resource: EgressPort } }
+        - { port: { get_resource: SFCPort } }
+      metadata:
+        ppg: { get_param: ppg_name }
 
   PortPair:
     type: OS::Neutron::PortPair
     properties:
       name: PortPair
-      egress: { get_resource: IngressPort }
-      ingress: { get_resource: EgressPort }
+      egress: { get_resource: SFCPort }
+      ingress: { get_resource: SFCPort }
     depends_on:
       - VNF
 
