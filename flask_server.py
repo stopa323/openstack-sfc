@@ -10,7 +10,7 @@ from mistralclient.api import client as mistral_client
 logging.basicConfig(level=logging.INFO)
 LOG = logging.getLogger(__name__)
 
-SCALE_UP_WF_NAME = 'ppg_scale'
+SCALE_UP_WF_NAME = 'ppg_scale_up'
 SCALE_DOWN_WF_NAME = 'placeholder'
 
 auth = v3.Password(auth_url=os.environ['OS_AUTH_URL'],

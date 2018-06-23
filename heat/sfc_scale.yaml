@@ -8,10 +8,10 @@ description: >
 
 resources:
 
-  PortPairGroup1:
+  VNF001_PortPairGroup:
     type: OS::Neutron::PortPairGroup
     properties:
-      name: ppg1
+      name: vnf1_ppg
       port_pairs: []
 
   SFCNetwork:
@@ -37,12 +37,12 @@ resources:
           image: cirros
           flavor: m1.tiny
           network: { get_resource: SFCNetwork }
-          ppg_name: { get_resource: PortPairGroup1 }
+          ppg_name: { get_resource: VNF001_PortPairGroup }
       min_size: 1
       desired_capacity: 2
       max_size: 5
     depends_on:
-      - PortPairGroup1
+      - VNF001_PortPairGroup
 
   ScaleUpPolicy:
     type: OS::Heat::ScalingPolicy
@@ -59,6 +59,69 @@ resources:
       auto_scaling_group_id: { get_resource: AutoScalingGroup }
       cooldown: 60
       scaling_adjustment: '-1'
+
+  VM001_Port:
+    type: OS::Neutron::Port
+    properties:
+      name: vm001_port
+      network: { get_resource: SFCNetwork }
+
+  VM001:
+    type: OS::Nova::Server
+    properties:
+      name: VM001
+      image: cirros
+      flavor: m1.tiny
+      networks:
+        - { port: { get_resource: VM001_Port } }
+    depends_on:
+      - VM001_Port
+
+  VM002_Port:
+    type: OS::Neutron::Port
+    properties:
+      name: vm002_port
+      network: { get_resource: SFCNetwork }
+
+  VM002:
+    type: OS::Nova::Server
+    properties:
+      name: VM002
+      image: cirros
+      flavor: m1.tiny
+      networks:
+        - { port: { get_resource: VM002_Port } }
+    depends_on:
+      - VM002_Port
+
+  FlowClassifier:
+    type: OS::Neutron::FlowClassifier
+    properties:
+      name: FlowClassifier001
+      description: VM001 to VM002
+      destination_ip_prefix: { get_attr: [SFCSubnet, cidr] }
+      source_ip_prefix: { get_attr: [SFCSubnet, cidr] }
+      ethertype: IPv4
+      logical_destination_port: { get_resource: VM001_Port }
+      logical_source_port: { get_resource: VM001_Port }
+      protocol: tcp
+      source_port_range_min: 10
+      source_port_range_max: 8000
+      destination_port_range_min: 10
+      destination_port_range_max: 8000
+    depends_on:
+      - VM001
+      - VM002
+
+  PortChain:
+    type: OS::Neutron::PortChain
+    properties:
+      name: port_chain
+      flow_classifiers: [{ get_resource: FlowClassifier }]
+      port_pair_groups: [{ get_resource: VNF001_PortPairGroup }]
+    depends_on:
+      - VNF001_PortPairGroup
+      - FlowClassifier
 
 outputs:
   scale_up_url:

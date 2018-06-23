@@ -1,7 +1,7 @@
 ---
 version: '2.0'
 
-ppg_scale:
+ppg_scale_up:
   description: Scale Neutron PortPairGroup.
   type: direct
 
