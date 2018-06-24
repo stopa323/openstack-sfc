@@ -1,0 +1,72 @@
+\documentclass[pdflatex,en]{aghden}
+\usepackage[english]{babel}
+\usepackage[utf8]{inputenc}
+
+% dodatkowe pakiety
+\usepackage{enumerate}
+\usepackage{listings}
+\lstloadlanguages{TeX}
+
+\lstset{
+  literate={ą}{{\k{a}}}1
+           {ć}{{\'c}}1
+           {ę}{{\k{e}}}1
+           {ó}{{\'o}}1
+           {ń}{{\'n}}1
+           {ł}{{\l{}}}1
+           {ś}{{\'s}}1
+           {ź}{{\'z}}1
+           {ż}{{\.z}}1
+           {Ą}{{\k{A}}}1
+           {Ć}{{\'C}}1
+           {Ę}{{\k{E}}}1
+           {Ó}{{\'O}}1
+           {Ń}{{\'N}}1
+           {Ł}{{\L{}}}1
+           {Ś}{{\'S}}1
+           {Ź}{{\'Z}}1
+           {Ż}{{\.Z}}1
+}
+
+%---------------------------------------------------------------------------
+
+\author{Bartosz Stopa}
+\shortauthor{B. Stopa}
+
+\titleEN{Thesis topic}
+\thesistypeEN{Master of Science Thesis}
+
+\supervisorEN{Mirosław Kantor Ph.D}
+
+\date{2018}
+
+\departmentEN{Department of Information and communication technologies}
+\facultyEN{Faculty of Computer Science, Electronics and Telecommunications}
+
+\acknowledgements{Acknowledgements}
+
+
+
+\setlength{\cftsecnumwidth}{10mm}
+
+%---------------------------------------------------------------------------
+
+\begin{document}
+
+\titlepages
+
+\tableofcontents
+\clearpage
+
+\include{chapter-01}
+\include{chapter-02}
+
+% itd.
+% \appendix
+% \include{appendixA}
+% itd.
+
+\bibliographystyle{alpha}
+\bibliography{bibliography}
+
+\end{document}
