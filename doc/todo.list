@@ -1,0 +1,39 @@
+[Introduction]
+  intro to MANO & SFC					[  ]
+  purpose of the research				[  ]
+  brief summary						[  ]
+
+[StateOfTheArt]
+  RFC SFC Architecture					[  ]
+  other approaches					[  ]
+
+--- Used tools, conf, images etc ---
+[OpenStack]
+  brief							[  ]
+  monitoring - ceilometer, aodh, gnocchi		[  ]
+  neutron						[  ]
+  heat							[  ]
+  mistral						[  ]
+  networking-sfc					[  ]
+
+[OVS]
+  brief							[  ]
+  integration with OpenStack				[  ]
+  SFC flows implementation				[  ]
+  flow/group tables deeply				[  ]
+
+[Misc]
+  AWS							[  ]
+  kolla-ansible						[  ]
+  netcat for traffic gen				[  ]
+  used VNFs						[  ]
+  Test scenarios					[  ]
+
+--- Research results ---				[  ]
+
+--- Results analysis (with refs to others) ---		[  ]
+
+--- Summary ---						[  ]
+
+--- Appendix ? ---					[  ]
+
