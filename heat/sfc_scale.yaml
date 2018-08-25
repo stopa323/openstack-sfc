@@ -1,0 +1,148 @@
+---
+heat_template_version: 2016-10-14
+description: >
+  A simple SFC auto scaling.
+  Stack consists of single network, single subnet and AutoScalingGroup.
+  ASG consist of VM with Neutron::PortPair attached. Scaling polices provide
+  URLs for scale triggering.
+
+resources:
+
+  VNF001_PortPairGroup:
+    type: OS::Neutron::PortPairGroup
+    properties:
+      name: vnf1_ppg
+      port_pairs: []
+
+  SFCNetwork:
+    type: OS::Neutron::Net
+    properties:
+      name: sfc_network
+
+  SFCSubnet:
+    type: OS::Neutron::Subnet
+    properties:
+      name: sfc_subnet
+      cidr: 10.200.0.0/16
+      allocation_pools:
+        - {"start": 10.200.0.10, "end": 10.200.0.50}
+      network: { get_resource: SFCNetwork }
+
+  AutoScalingGroup:
+    type: OS::Heat::AutoScalingGroup
+    properties:
+      resource:
+        type: simple_vnf.yaml
+        properties:
+          image: cirros
+          flavor: m1.tiny
+          network: { get_resource: SFCNetwork }
+          ppg_name: { get_resource: VNF001_PortPairGroup }
+      min_size: 1
+      desired_capacity: 2
+      max_size: 5
+    depends_on:
+      - VNF001_PortPairGroup
+
+  ScaleUpPolicy:
+    type: OS::Heat::ScalingPolicy
+    properties:
+      adjustment_type: change_in_capacity
+      auto_scaling_group_id: { get_resource: AutoScalingGroup }
+      cooldown: 60
+      scaling_adjustment: 1
+
+  ScaleDownPolicy:
+    type: OS::Heat::ScalingPolicy
+    properties:
+      adjustment_type: change_in_capacity
+      auto_scaling_group_id: { get_resource: AutoScalingGroup }
+      cooldown: 60
+      scaling_adjustment: '-1'
+
+  VM001_Port:
+    type: OS::Neutron::Port
+    properties:
+      name: vm001_port
+      network: { get_resource: SFCNetwork }
+
+  VM001:
+    type: OS::Nova::Server
+    properties:
+      name: VM001
+      image: cirros
+      flavor: m1.tiny
+      networks:
+        - { port: { get_resource: VM001_Port } }
+    depends_on:
+      - VM001_Port
+
+  VM002_Port:
+    type: OS::Neutron::Port
+    properties:
+      name: vm002_port
+      network: { get_resource: SFCNetwork }
+
+  VM002:
+    type: OS::Nova::Server
+    properties:
+      name: VM002
+      image: cirros
+      flavor: m1.tiny
+      networks:
+        - { port: { get_resource: VM002_Port } }
+    depends_on:
+      - VM002_Port
+
+  FlowClassifier:
+    type: OS::Neutron::FlowClassifier
+    properties:
+      name: FlowClassifier001
+      description: VM001 to VM002
+      destination_ip_prefix: { get_attr: [SFCSubnet, cidr] }
+      source_ip_prefix: { get_attr: [SFCSubnet, cidr] }
+      ethertype: IPv4
+      logical_destination_port: { get_resource: VM001_Port }
+      logical_source_port: { get_resource: VM001_Port }
+      protocol: tcp
+      source_port_range_min: 10
+      source_port_range_max: 8000
+      destination_port_range_min: 10
+      destination_port_range_max: 8000
+    depends_on:
+      - VM001
+      - VM002
+
+  PortChain:
+    type: OS::Neutron::PortChain
+    properties:
+      name: port_chain
+      flow_classifiers: [{ get_resource: FlowClassifier }]
+      port_pair_groups: [{ get_resource: VNF001_PortPairGroup }]
+    depends_on:
+      - VNF001_PortPairGroup
+      - FlowClassifier
+
+outputs:
+  scale_up_url:
+    description: >
+      This URL is the webhook to scale up the group.  You can invoke
+      the scale-up operation by doing an HTTP POST to this URL; no
+      body nor extra headers are needed.
+    value: {get_attr: [ScaleUpPolicy, alarm_url]}
+  scale_dn_url:
+    description: >
+      This URL is the webhook to scale down the group.  You can invoke
+      the scale-down operation by doing an HTTP POST to this URL; no
+      body nor extra headers are needed.
+    value: {get_attr: [ScaleDownPolicy, alarm_url]}
+  asg_size:
+    description: >
+      This is the current size of the auto scaling group.
+    value: {get_attr: [AutoScalingGroup, current_size]}
+#  asg_outputs:
+#    value:
+#      yaql:
+#        expression: $.data.port_pairs.values()
+#        data:
+#          port_pairs: { get_attr: [AutoScalingGroup, outputs, port_pair] }

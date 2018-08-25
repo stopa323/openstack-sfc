@@ -1,0 +1,17 @@
+---
+heat_template_version: 2014-10-16
+description: A simple server.
+
+resources:
+  Server:
+    type: OS::Nova::Server
+    properties:
+      flavor: m1.tiny
+      networks:
+        - network: nfv_mgmt
+      name: 'Server001'
+      image: 'cirros'
+      user_data_format: RAW
+      user_data: |
+        #!/bin/sh
+        while [ 1 ] ; do echo $((13**99)) 1>/dev/null 2>&1; done

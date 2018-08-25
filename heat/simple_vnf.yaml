@@ -1,0 +1,51 @@
+---
+heat_template_version: 2015-04-30
+description: A simple VNF template.
+
+parameters:
+  image:
+    type: string
+    description: Glance image for VM
+  flavor:
+    type: string
+    description: Nova flavor for VM
+  network:
+    type: string
+    description: Neutron network for the VM
+  ppg_name:
+    type: string
+    description: |
+      Name of the port pair group this VM belongs to. It is used by workflow
+      during scaling operation to attach/detach port pair to/from correct port
+      pair group.
+
+resources:
+
+  SFCPort:
+    type: OS::Neutron::Port
+    properties:
+      network: { get_param: network }
+
+  VNF:
+    type: OS::Nova::Server
+    properties:
+      image: cirros
+      flavor: m1.tiny
+      networks:
+        - { port: { get_resource: SFCPort } }
+      metadata:
+        ppg: { get_param: ppg_name }
+
+  PortPair:
+    type: OS::Neutron::PortPair
+    properties:
+      name: PortPair
+      egress: { get_resource: SFCPort }
+      ingress: { get_resource: SFCPort }
+    depends_on:
+      - VNF
+
+outputs:
+  port_pair:
+    description: VNF connected port pair
+    value: { get_resource: PortPair }
