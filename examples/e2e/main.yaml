@@ -1,0 +1,183 @@
+---
+heat_template_version: 2016-10-14
+description: >
+  SFC autoscaling template. Deploy single VNF chain,
+  traffic source and sink VMs along with scaling polices and alarms.
+
+resources:
+
+  SFCNetwork:
+    type: OS::Neutron::Net
+    properties:
+      name: e2e_sfc_network
+
+  SFCSubnet:
+    type: OS::Neutron::Subnet
+    properties:
+      name: e2e_sfc_subnet
+      cidr: 10.200.0.0/16
+      allocation_pools:
+        - {"start": 10.200.0.10, "end": 10.200.0.50}
+      network: { get_resource: SFCNetwork }
+
+  VNF-001ScalingGroup:
+    type: OS::Heat::AutoScalingGroup
+    properties:
+      resource:
+        type: vnf.yaml
+        properties:
+          image: xenial-passless
+          flavor: m1.xenial
+          network: { get_resource: SFCNetwork }
+          ppg_name: { get_resource: PortPairGroup-1 }
+      min_size: 1
+      desired_capacity: 1
+      max_size: 5
+
+  ScaleUpPolicy:
+    type: OS::Heat::ScalingPolicy
+    properties:
+      adjustment_type: change_in_capacity
+      auto_scaling_group_id: { get_resource: VNF-001ScalingGroup }
+      cooldown: 60
+      scaling_adjustment: 1
+
+  ScaleDownPolicy:
+    type: OS::Heat::ScalingPolicy
+    properties:
+      adjustment_type: change_in_capacity
+      auto_scaling_group_id: { get_resource: VNF-001ScalingGroup }
+      cooldown: 60
+      scaling_adjustment: '-1'
+
+  CPU_High_Alarm:
+    type: OS::Aodh::GnocchiAggregationByResourcesAlarm
+    properties:
+      metric: cpu_util
+      aggregation_method: mean
+      granularity: 300
+      evaluation_periods: 1
+      threshold: 50
+      alarm_actions:
+        - {get_attr: [ScaleUpPolicy, alarm_url]}
+      comparison_operator: gt
+      resource_type: instance
+      query:
+        str_replace:
+          template: '{"=": {"server_group": "stack_id"}}'
+          params:
+            stack_id: {get_param: "OS::stack_id"}
+
+  CPU_Low_Alarm:
+    type: OS::Aodh::GnocchiAggregationByResourcesAlarm
+    properties:
+      metric: cpu_util
+      aggregation_method: mean
+      granularity: 300
+      evaluation_periods: 1
+      threshold: 50
+      alarm_actions:
+        - {get_attr: [ScaleDownPolicy, alarm_url]}
+      comparison_operator: lt
+      resource_type: instance
+      query:
+        str_replace:
+          template: '{"=": {"server_group": "stack_id"}}'
+          params:
+            stack_id: {get_param: "OS::stack_id"}
+
+  InstanceSpawned_Alarm:
+    type: OS::Aodh::EventAlarm
+    properties:
+      alarm_actions:
+        - "http://192.168.100.10:5002/alarm/vm_create"
+      event_type: "compute.instance.create.end"
+
+  InstanceDestroyed_Alarm:
+    type: OS::Aodh::EventAlarm
+    properties:
+      alarm_actions:
+        - "http://192.168.100.10:5002/alarm/vm_delete"
+      event_type: "compute.instance.delete.start"
+
+  SourcePort:
+    type: OS::Neutron::Port
+    properties:
+      name: source_port
+      network: { get_resource: SFCNetwork }
+
+  TrafficSource:
+    type: OS::Nova::Server
+    properties:
+      name: traffic_source
+      image: cirros
+      flavor: m1.tiny
+      networks:
+        - { port: { get_resource: SourcePort } }
+
+  SinkPort:
+    type: OS::Neutron::Port
+    properties:
+      name: sink_port
+      network: { get_resource: SFCNetwork }
+
+  TrafficSink:
+    type: OS::Nova::Server
+    properties:
+      name: traffic_sink
+      image: cirros
+      flavor: m1.tiny
+      networks:
+        - { port: { get_resource: SinkPort } }
+
+  FlowClassifier:
+    type: OS::Neutron::FlowClassifier
+    properties:
+      name: FlowClassifier1
+      description: UPD 50050 to 50051
+      destination_ip_prefix: { get_attr: [SFCSubnet, cidr] }
+      source_ip_prefix: { get_attr: [SFCSubnet, cidr] }
+      ethertype: IPv4
+      logical_destination_port: { get_resource: SourcePort }
+      logical_source_port: { get_resource: SourcePort }
+      protocol: udp
+      source_port_range_min: 50050
+      source_port_range_max: 50050
+      destination_port_range_min: 50051
+      destination_port_range_max: 50051
+    depends_on:
+      - SourcePort
+
+  PortChain:
+    type: OS::Neutron::PortChain
+    properties:
+      name: port_chain
+      flow_classifiers: [{ get_resource: FlowClassifier }]
+      port_pair_groups: [{ get_resource: PortPairGroup-1 }]
+    depends_on:
+      - "PortPairGroup-1"
+      - FlowClassifier
+
+  PortPairGroup-1:
+    type: OS::Neutron::PortPairGroup
+    properties:
+      name: VNF-1-PPG
+      port_pairs: []
+
+outputs:
+  scale_up_url:
+    description: >
+      This URL is the webhook to scale up the group.  You can invoke
+      the scale-up operation by doing an HTTP POST to this URL; no
+      body nor extra headers are needed.
+    value: {get_attr: [ScaleUpPolicy, alarm_url]}
+  scale_dn_url:
+    description: >
+      This URL is the webhook to scale down the group.  You can invoke
+      the scale-down operation by doing an HTTP POST to this URL; no
+      body nor extra headers are needed.
+    value: {get_attr: [ScaleDownPolicy, alarm_url]}
+  asg_size:
+    description: >
+      This is the current size of the auto scaling group.
+    value: {get_attr: [VNF-001ScalingGroup, current_size]}

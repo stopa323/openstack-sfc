@@ -1,6 +1,6 @@
 ---
 heat_template_version: 2015-04-30
-description: A simple VNF template.
+description: VNF template.
 
 parameters:
   image:
@@ -21,7 +21,7 @@ parameters:
 
 resources:
 
-  SFCPort:
+  VMPort:
     type: OS::Neutron::Port
     properties:
       network: { get_param: network }
@@ -29,19 +29,23 @@ resources:
   VNF:
     type: OS::Nova::Server
     properties:
-      image: cirros
-      flavor: m1.tiny
+      image: { get_param: image }
+      flavor: { get_param: flavor }
       networks:
-        - { port: { get_resource: SFCPort } }
+        - { port: { get_resource: VMPort } }
       metadata:
         ppg: { get_param: ppg_name }
+      user_data: |
+        echo 0 > /proc/sys/net/ipv4/conf/ens3/send_redirects
+        echo 1 > /proc/sys/net/ipv4/ip_forward
+        iptables -A FORWARD --in-interface ens3 -j ACCEPT
 
   PortPair:
     type: OS::Neutron::PortPair
     properties:
       name: PortPair
-      egress: { get_resource: SFCPort }
-      ingress: { get_resource: SFCPort }
+      egress: { get_resource: VMPort }
+      ingress: { get_resource: VMPort }
     depends_on:
       - VNF
 
